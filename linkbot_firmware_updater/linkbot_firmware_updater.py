@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
+
+__version__ = "0.0.1"
+
 import sys
 from PyQt4 import QtCore, QtGui
-from ui.dialog import Ui_Dialog
+from linkbot_firmware_updater.dialog import Ui_Dialog
 import linkbot
 import time
 import glob
@@ -11,6 +14,8 @@ import subprocess
 
 #  idVendor           0x03eb Atmel Corp.
 #  idProduct          0x204b LUFA USB to Serial Adapter Project
+
+print(__file__)
 
 instructions_text = '''<html><head/><body><p>Instructions:</p><p>1. Unplug all
 Linkbots and Z-Link dongles connected to your computer.</p><p>2. Turn off the
@@ -127,7 +132,7 @@ class StartQT4(QtGui.QDialog):
         self.ui.label.setText(instructions_text)
         self.ui.buttonBox.setEnabled(True)
 
-if __name__ == "__main__":
+def main():
     app = QtGui.QApplication(sys.argv)
     myapp = StartQT4()
     myapp.show()
@@ -138,3 +143,6 @@ if __name__ == "__main__":
     listenerThread.start()
 
     sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()
