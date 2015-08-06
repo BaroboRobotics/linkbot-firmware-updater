@@ -15,7 +15,14 @@ import subprocess
 #  idVendor           0x03eb Atmel Corp.
 #  idProduct          0x204b LUFA USB to Serial Adapter Project
 
-print(__file__)
+from pkg_resources import resource_filename, resource_listdir
+fallback_hex_file = ''
+fallback_eeprom_file = ''
+firmware_files = resource_listdir(__name__, 'hexfiles')
+firmware_files.sort()
+firmware_basename = os.path.splitext(
+    resource_filename(__name__, os.path.join('hexfiles', firmware_files[0])))[0]
+fallback_hex_file = firmware_basename + '.hex'
 
 instructions_text = '''<html><head/><body><p>Instructions:</p><p>1. Unplug all
 Linkbots and Z-Link dongles connected to your computer.</p><p>2. Turn off the
@@ -84,15 +91,7 @@ class StartQT4(QtGui.QDialog):
                     '/usr/share/Barobo/LinkbotLabs/firmware/*.hex')
                 hexfile = hexfiles[-1]
             except:
-                try:
-                    hexfiles = glob.glob(
-                        '/usr/share/Barobo/firmware-updater/*.hex')
-                    hexfiles = hexfile[-1]
-                except:
-                    QtGui.QMessageBox.critical(
-                        self,
-                        'Error: Firmware Not Found',
-                        'A firmware file has not been found on this system.')
+                hexfile = fallback_hex_file
         print("Programing hex file:")
         print(hexfile)
         # Make sure EEPROM file also exists
