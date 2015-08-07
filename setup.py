@@ -14,7 +14,7 @@ setup(
     packages = ["linkbot_firmware_updater", ],
     version = version,
     entry_points = {
-        "console_scripts": ['linkbot_firmware_updater=linkbot_firmware_updater.linkbot_firmware_updater:main']
+        "console_scripts": ['linkbot-firmware-updater=linkbot_firmware_updater.linkbot_firmware_updater:main']
     },
     install_requires = ["PyLinkbot >= 2.3.4"],
     description = "Firmware Updating Tool for Barobo Linkbots.",
