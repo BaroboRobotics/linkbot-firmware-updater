@@ -1,6 +1,6 @@
 # linkbot-firmware-updater
 
-The linkbot-firmware-updater is a tool used to update the firmware of a Barobo [Linkbot](http://www.linkbotlabs.com). Typically, Linkbots are updating through the Linkbot Labs environment. However, there are some older computer systems that may not be able to run the full version of Linkbot Labs. For those systems, this utility can be used to update the firmware of Linkbots.
+The linkbot-firmware-updater is a tool used to update the firmware of a Barobo [Linkbot](http://linkbotlabs.com). Typically, Linkbots are updating through the Linkbot Labs environment. However, there are some older computer systems that may not be able to run the full version of Linkbot Labs. For those systems, this utility can be used to update the firmware of Linkbots.
 
 This software first checks to see if Linkbot Labs is installed and tries to update Linkbots to the version provided by Linkbot Labs. If Linkbot Labs is not installed, it falls back to the version of firmware that comes with the updater.
 
