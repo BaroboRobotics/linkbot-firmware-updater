@@ -84,12 +84,12 @@ class StartQT4(QtGui.QDialog):
             hexfiles = glob.glob(
                 os.environ['HOME'] + 
                 '/.local/share/Barobo/LinkbotLabs/firmware/*.hex')
-            hexfile = hexfiles[-1]
+            hexfile = sorted(hexfiles)[-1]
         except:
             try:
                 hexfiles = glob.glob(
                     '/usr/share/Barobo/LinkbotLabs/firmware/*.hex')
-                hexfile = hexfiles[-1]
+                hexfile = sorted(hexfiles)[-1]
             except:
                 hexfile = fallback_hex_file
         print("Programing hex file:")
