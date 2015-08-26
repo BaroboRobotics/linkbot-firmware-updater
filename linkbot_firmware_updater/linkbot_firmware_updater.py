@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 import sys
 from PyQt4 import QtCore, QtGui
@@ -84,12 +84,12 @@ class StartQT4(QtGui.QDialog):
             hexfiles = glob.glob(
                 os.environ['HOME'] + 
                 '/.local/share/Barobo/LinkbotLabs/firmware/*.hex')
-            hexfile = hexfiles[-1]
+            hexfile = sorted(hexfiles)[-1]
         except:
             try:
                 hexfiles = glob.glob(
                     '/usr/share/Barobo/LinkbotLabs/firmware/*.hex')
-                hexfile = hexfiles[-1]
+                hexfile = sorted(hexfiles)[-1]
             except:
                 hexfile = fallback_hex_file
         print("Programing hex file:")
