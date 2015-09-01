@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 import sys
 from PyQt4 import QtCore, QtGui
-from linkbot_firmware_updater.dialog import Ui_Dialog
+try:
+    from linkbot_firmware_updater.dialog import Ui_Dialog
+except:
+    from dialog import Ui_Dialog
 import linkbot
 import time
 import glob
@@ -12,8 +15,136 @@ import threading
 import os
 import subprocess
 
+import pystk500v2
+
+from functools import reduce
+
 #  idVendor           0x03eb Atmel Corp.
 #  idProduct          0x204b LUFA USB to Serial Adapter Project
+
+def _retry(f, n, interval, args=(), kwargs={}):
+    retries = 0
+    success = False
+    while True:
+        try:
+            return f(*args, **kwargs)
+        except:
+            retries += 1
+            if retries >= times:
+                raise
+            else:
+                time.sleep(interval)
+
+class LinkbotProgrammer(pystk500v2.Stk500):
+    WORDSIZE = 2
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.flashFile = pystk500v2.HexFile()
+        self.eepromFile = pystk500v2.HexFile()
+        self.progress = 0.0
+        self._isprogramming = False
+
+    def getProgress():
+        return self.progress
+
+    def set_device(self, devicecode = 0x86,
+                         revision = 0x00,
+                         progtype = 0x00,
+                         parmode = 0x01,
+                         polling = 0x01,
+                         selftimed = 0x01,
+                         lockbytes = 0x01,
+                         fusebytes = 0x03,
+                         flashpollval1 = 0xff,
+                         flashpollval2 = 0xff,
+                         eeprompollval1 = 0xff,
+                         eeprompollval2 = 0xff,
+                         pagesizehigh = 0x00,
+                         pagesizelow = 0x80,
+                         eepromsizehigh = 0x04,
+                         eepromsizelow = 0x00,
+                         flashsize4 = 0x00,
+                         flashsize3 = 0x00,
+                         flashsize2 = 0x80,
+                         flashsize1 = 0x00):
+        super().set_device( 
+                         devicecode,
+                         revision,
+                         progtype,
+                         parmode,
+                         polling,
+                         selftimed,
+                         lockbytes,
+                         fusebytes,
+                         flashpollval1,
+                         flashpollval2,
+                         eeprompollval1,
+                         eeprompollval2,
+                         pagesizehigh,
+                         pagesizelow,
+                         eepromsizehigh,
+                         eepromsizelow,
+                         flashsize4,
+                         flashsize3,
+                         flashsize2,
+                         flashsize1)
+    def set_device_ext(self, commandsize = 0x05,
+                             eeprompagesize = 0x04,
+                             signalpagel = 0xd7,
+                             signalbs2 = 0xc2,
+                             resetdisable = 0x00):
+        super().set_device_ext(commandsize, eeprompagesize, signalpagel,
+                               signalbs2, resetdisable)
+
+    def loadFlashHexFile(self, filename):
+        self.flashFile.fromIHexFile(filename)
+
+    def loadEepromHexFile(self, filename):
+        self.eepromFile.fromIHexFile(filename)
+
+    def loadProgram(self, blocksize=0x0100, eepromblocksize=0x0010):
+        self._isprogramming = True
+        _retry(self.get_sync, 5, 1)
+        self.set_device()
+        self.set_device_ext()
+        self.enter_progmode()
+        signature_bytes = self.read_sign()
+        signature = 0
+        for b in signature_bytes:
+            signature = (signature<<8) + b
+        assert signature == 0x1ea701
+        # Load the flash program
+        curAddr = 0
+        while curAddr < len(self.flashFile):
+            isBlank = reduce(
+                lambda x,y: True if (x==True) and (y==0xff) else False,
+                self.flashFile[curAddr:curAddr+blocksize],
+                True)
+            if not isBlank:
+                self.load_address(int(curAddr/self.WORDSIZE))
+                self.prog_page('F', self.flashFile[curAddr:curAddr+blocksize])
+            curAddr += blocksize
+            self.progress = curAddr/len(self.flashFile)
+        # Load the eeprom file
+        curAddr = 0
+        while curAddr < len(self.eepromFile):
+            isBlank = reduce(
+                lambda x,y: True if (x==True) and (y==0xff) else False,
+                self.eepromFile[curAddr:curAddr+eepromblocksize],
+                True)
+            if not isBlank:
+                self.load_address(int(curAddr/self.WORDSIZE))
+                self.prog_page('E', self.eepromFile[curAddr:curAddr+eepromblocksize])
+            curAddr += eepromblocksize
+        self.leave_progmode()
+        self._isprogramming = False
+
+    def loadProgramAsync(self, *args, **kwargs):
+        self.thread = threading.Thread(target=self.loadProgram, 
+                                       args=args,
+                                       kwargs=kwargs)
+        self.thread.start()
+        
 
 from pkg_resources import resource_filename, resource_listdir
 fallback_hex_file = ''
@@ -107,25 +238,10 @@ class StartQT4(QtGui.QDialog):
         try:
             self.ui.label.setText(programming_text)
             self.ui.buttonBox.setEnabled(False)
-            cmd = [
-              'avrdude', 
-              '-c',
-              'arduino', 
-              '-P',
-              serialPortPath,
-              '-p',
-              'm128rfa1',
-              '-q',
-              '-e',
-              '-V',
-              '-U',
-              'fl:w:{0}'.format(hexfile),
-              '-U',
-              'eeprom:w:{0}'.format(eepromFile),
-              '-b',
-              '57600']
-            self.myprocess = subprocess.Popen(cmd)
-            self.myprocess.wait()
+            self.programmer = LinkbotProgrammer(serialPortPath)
+            self.programmer.loadFlashHexFile(hexfile)
+            self.programmer.loadEepromHexFile(eepromFile)
+            self.programmer.loadProgram()
         except Exception as e:
             print(e)
         self.ui.label.setText(instructions_text)
