@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 import sys
 from PyQt4 import QtCore, QtGui
@@ -44,7 +44,10 @@ class LinkbotProgrammer(pystk500v2.Stk500):
         self.progress = 0.0
         self._isprogramming = False
 
-    def getProgress():
+    def isProgramming(self):
+        return self._isprogramming
+
+    def getProgress(self):
         return self.progress
 
     def set_device(self, devicecode = 0x86,
@@ -178,12 +181,15 @@ itself and the normal instructions will again be displayed in this window...
 '''
 
 class StartQT4(QtGui.QDialog):
+    linkbotDetectedSignal = QtCore.pyqtSignal(str)
+
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
         self.ui = Ui_Dialog()
         self.ui.setupUi(self)
         self.isRunning = True
         self.setWindowTitle('Linkbot Firmware Programmer')
+        self.linkbotDetectedSignal.connect(self.startProgramming)
 
     def accept(self):
         self.waiting_overlay.show()
@@ -205,7 +211,8 @@ class StartQT4(QtGui.QDialog):
             devices = glob.glob('/dev/ttyACM*')
             if len(devices) > len(prevDevices):
                 time.sleep(1.5)
-                self.startProgramming((set(devices)-set(prevDevices)).pop())
+                #self.startProgramming((set(devices)-set(prevDevices)).pop())
+                self.linkbotDetectedSignal.emit((set(devices)-set(prevDevices)).pop())
             prevDevices = devices
             time.sleep(0.5)
 
@@ -241,11 +248,20 @@ class StartQT4(QtGui.QDialog):
             self.programmer = LinkbotProgrammer(serialPortPath)
             self.programmer.loadFlashHexFile(hexfile)
             self.programmer.loadEepromHexFile(eepromFile)
-            self.programmer.loadProgram()
+            self.programmer.loadProgramAsync()
+            self.updateProgressTimer = QtCore.QTimer(self)
+            self.updateProgressTimer.timeout.connect(self.updateProgress)
+            self.updateProgressTimer.start(500)
         except Exception as e:
             print(e)
-        self.ui.label.setText(instructions_text)
-        self.ui.buttonBox.setEnabled(True)
+
+    def updateProgress(self):
+        if not self.programmer.isProgramming():
+            self.ui.label.setText(instructions_text)
+            self.ui.buttonBox.setEnabled(True)
+            self.updateProgressTimer.stop()
+        else:
+            self.ui.progressBar.setValue(self.programmer.getProgress()*100)
 
 def main():
     app = QtGui.QApplication(sys.argv)
