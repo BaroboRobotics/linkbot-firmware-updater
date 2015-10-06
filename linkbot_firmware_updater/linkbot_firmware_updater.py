@@ -14,6 +14,7 @@ import glob
 import threading
 import os
 import subprocess
+import re
 
 import pystk500v2
 
@@ -40,7 +41,7 @@ class LinkbotProgrammer(pystk500v2.Stk500):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.flashFile = pystk500v2.HexFile()
-        self.eepromFile = pystk500v2.HexFile()
+        self.eepromFile = None
         self.progress = 0.0
         self._isprogramming = False
 
@@ -103,6 +104,7 @@ class LinkbotProgrammer(pystk500v2.Stk500):
         self.flashFile.fromIHexFile(filename)
 
     def loadEepromHexFile(self, filename):
+        self.eepromFile = pystk500v2.HexFile()
         self.eepromFile.fromIHexFile(filename)
 
     def loadProgram(self, blocksize=0x0100, eepromblocksize=0x0010):
@@ -129,16 +131,17 @@ class LinkbotProgrammer(pystk500v2.Stk500):
             curAddr += blocksize
             self.progress = curAddr/len(self.flashFile)
         # Load the eeprom file
-        curAddr = 0
-        while curAddr < len(self.eepromFile):
-            isBlank = reduce(
-                lambda x,y: True if (x==True) and (y==0xff) else False,
-                self.eepromFile[curAddr:curAddr+eepromblocksize],
-                True)
-            if not isBlank:
-                self.load_address(int(curAddr/self.WORDSIZE))
-                self.prog_page('E', self.eepromFile[curAddr:curAddr+eepromblocksize])
-            curAddr += eepromblocksize
+        if self.eepromFile:
+            curAddr = 0
+            while curAddr < len(self.eepromFile):
+                isBlank = reduce(
+                    lambda x,y: True if (x==True) and (y==0xff) else False,
+                    self.eepromFile[curAddr:curAddr+eepromblocksize],
+                    True)
+                if not isBlank:
+                    self.load_address(int(curAddr/self.WORDSIZE))
+                    self.prog_page('E', self.eepromFile[curAddr:curAddr+eepromblocksize])
+                curAddr += eepromblocksize
         self.leave_progmode()
         self._isprogramming = False
 
@@ -191,6 +194,23 @@ class StartQT4(QtGui.QDialog):
         self.setWindowTitle('Linkbot Firmware Programmer')
         self.linkbotDetectedSignal.connect(self.startProgramming)
 
+        # Try and find the latest firmware file
+        self.hexfiles = glob.glob(
+            os.environ['HOME'] + 
+            '/.local/share/Barobo/LinkbotLabs/firmware/*.hex')
+        self.hexfiles += glob.glob(
+            '/usr/share/Barobo/LinkbotLabs/firmware/*.hex')
+        self.hexfiles += [fallback_hex_file]
+
+        def sortkey(x):
+            basename = os.path.basename(x)
+            m = re.search(r'v(\d+).(\d+).(\d+).hex', basename)
+            return tuple(map(int, m.group(1,2,3)))
+        self.hexfiles = reversed(sorted(self.hexfiles, key=sortkey))
+
+        for h in self.hexfiles:
+            self.ui.comboBox_filename.addItem(h)
+
     def accept(self):
         self.waiting_overlay.show()
         #QtCore.QCoreApplication.instance().quit()
@@ -217,37 +237,18 @@ class StartQT4(QtGui.QDialog):
             time.sleep(0.5)
 
     def startProgramming(self, serialPortPath): 
-        # Try and find the latest firmware file
         try:
-            hexfiles = glob.glob(
-                os.environ['HOME'] + 
-                '/.local/share/Barobo/LinkbotLabs/firmware/*.hex')
-            hexfile = sorted(hexfiles)[-1]
-        except:
-            try:
-                hexfiles = glob.glob(
-                    '/usr/share/Barobo/LinkbotLabs/firmware/*.hex')
-                hexfile = sorted(hexfiles)[-1]
-            except:
-                hexfile = fallback_hex_file
-        print("Programing hex file:")
-        print(hexfile)
-        # Make sure EEPROM file also exists
-        firmwareDir = os.path.dirname(hexfile)
-        firmwareName,_ = os.path.splitext(os.path.basename(hexfile))
-        eepromFile = os.path.join(firmwareDir, firmwareName+'.eeprom')
-        print(eepromFile)
-        if not os.path.exists(eepromFile):
-            QtGui.QMessageBox.critical(
-                self,
-                'Error: EEPROM File Not Found',
-                'A firmware file has not been found on this system.')
-        try:
+            hexfile = self.ui.comboBox_filename.currentText()
             self.ui.label.setText(programming_text)
             self.ui.buttonBox.setEnabled(False)
             self.programmer = LinkbotProgrammer(serialPortPath)
             self.programmer.loadFlashHexFile(hexfile)
-            self.programmer.loadEepromHexFile(eepromFile)
+            try:
+                basename,_ = os.path.splitext(hexfile)
+                eepromFile = basename + '.eeprom'
+                self.programmer.loadEepromHexFile(eepromFile)
+            except OSError:
+                pass # Don't worry if we can't find this file
             self.programmer.loadProgramAsync()
             self.updateProgressTimer = QtCore.QTimer(self)
             self.updateProgressTimer.timeout.connect(self.updateProgress)
