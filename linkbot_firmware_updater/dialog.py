@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'dialog.ui'
 #
-# Created: Tue Sep  8 16:33:48 2015
+# Created: Tue Oct  6 10:44:29 2015
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -34,6 +34,9 @@ class Ui_Dialog(object):
         self.label.setWordWrap(True)
         self.label.setObjectName(_fromUtf8("label"))
         self.verticalLayout.addWidget(self.label)
+        self.comboBox_filename = QtGui.QComboBox(Dialog)
+        self.comboBox_filename.setObjectName(_fromUtf8("comboBox_filename"))
+        self.verticalLayout.addWidget(self.comboBox_filename)
         self.progressBar = QtGui.QProgressBar(Dialog)
         self.progressBar.setProperty("value", 0)
         self.progressBar.setObjectName(_fromUtf8("progressBar"))
