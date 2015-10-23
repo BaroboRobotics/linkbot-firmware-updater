@@ -144,6 +144,7 @@ class LinkbotProgrammer(pystk500v2.Stk500):
                 curAddr += eepromblocksize
         self.leave_progmode()
         self._isprogramming = False
+        self.progress = 1
 
     def loadProgramAsync(self, *args, **kwargs):
         self.thread = threading.Thread(target=self.loadProgram, 
@@ -197,15 +198,18 @@ class StartQT4(QtGui.QDialog):
         # Try and find the latest firmware file
         self.hexfiles = glob.glob(
             os.environ['HOME'] + 
-            '/.local/share/Barobo/LinkbotLabs/firmware/*.hex')
+            '/.local/share/Barobo/LinkbotLabs/firmware/v*.hex')
         self.hexfiles += glob.glob(
-            '/usr/share/Barobo/LinkbotLabs/firmware/*.hex')
+            '/usr/share/Barobo/LinkbotLabs/firmware/v*.hex')
         self.hexfiles += [fallback_hex_file]
 
         def sortkey(x):
             basename = os.path.basename(x)
             m = re.search(r'v(\d+).(\d+).(\d+).hex', basename)
-            return tuple(map(int, m.group(1,2,3)))
+            try:
+                return tuple(map(int, m.group(1,2,3)))
+            except:
+                return (0,0,0)
         self.hexfiles = reversed(sorted(self.hexfiles, key=sortkey))
 
         for h in self.hexfiles:
