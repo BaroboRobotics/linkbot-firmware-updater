@@ -143,8 +143,8 @@ class LinkbotProgrammer(pystk500v2.Stk500):
                     self.prog_page('E', self.eepromFile[curAddr:curAddr+eepromblocksize])
                 curAddr += eepromblocksize
         self.leave_progmode()
-        self._isprogramming = False
         self.progress = 1
+        self._isprogramming = False
 
     def loadProgramAsync(self, *args, **kwargs):
         self.thread = threading.Thread(target=self.loadProgram, 
@@ -265,8 +265,7 @@ class StartQT4(QtGui.QDialog):
             self.ui.label.setText(instructions_text)
             self.ui.buttonBox.setEnabled(True)
             self.updateProgressTimer.stop()
-        else:
-            self.ui.progressBar.setValue(self.programmer.getProgress()*100)
+        self.ui.progressBar.setValue(self.programmer.getProgress()*100)
 
 def main():
     app = QtGui.QApplication(sys.argv)
