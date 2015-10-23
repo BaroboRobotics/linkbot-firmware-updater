@@ -198,9 +198,9 @@ class StartQT4(QtGui.QDialog):
         # Try and find the latest firmware file
         self.hexfiles = glob.glob(
             os.environ['HOME'] + 
-            '/.local/share/Barobo/LinkbotLabs/firmware/v*.hex')
+            '/.local/share/Barobo/LinkbotLabs/firmware/*.hex')
         self.hexfiles += glob.glob(
-            '/usr/share/Barobo/LinkbotLabs/firmware/v*.hex')
+            '/usr/share/Barobo/LinkbotLabs/firmware/*.hex')
         self.hexfiles += [fallback_hex_file]
 
         def sortkey(x):
