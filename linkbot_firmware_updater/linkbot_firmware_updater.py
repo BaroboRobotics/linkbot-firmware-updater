@@ -202,7 +202,11 @@ class StartQT4(QtGui.QDialog):
         self.hexfiles += glob.glob(
             '/usr/share/Barobo/LinkbotLabs/firmware/*.hex')
         #self.hexfiles += [fallback_hex_file]
-        self.hexfiles += firmware_files
+        def _form_abs_path(filename):
+            return resource_filename(__name__, 
+                    os.path.join('hexfiles', filename) ) 
+        abs_firmware_files = map(_form_abs_path, firmware_files)
+        self.hexfiles += abs_firmware_files
 
         def sortkey(x):
             basename = os.path.basename(x)
