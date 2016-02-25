@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-__version__ = "0.0.10"
+__version__ = "0.0.11"
 
 import sys
 from PyQt4 import QtCore, QtGui
@@ -211,10 +211,23 @@ class StartQT4(QtGui.QDialog):
         def sortkey(x):
             basename = os.path.basename(x)
             m = re.search(r'v(\d+).(\d+).(\d+).hex', basename)
+            if m is None:
+                print(basename)
+                m = re.search(r'v(\d+).(\d+).(\d+).(\d+).hex', basename)
+
             try:
-                return tuple(map(int, m.group(1,2,3)))
+                tweak = int(m.group(4))
             except:
-                return (0,0,0)
+                tweak = 0
+
+            try:
+                major = int(m.group(1))
+                minor = int(m.group(2))
+                patch = int(m.group(3))
+                return (major, minor, patch, tweak)
+            except:
+                return (0,0,0,0)
+
         self.hexfiles = reversed(sorted(self.hexfiles, key=sortkey))
 
         for h in self.hexfiles:
