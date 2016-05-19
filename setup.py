@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import codecs
+import os
 from setuptools import setup
 import re
 
@@ -9,6 +11,8 @@ version = re.search(
     re.M
     ).group(1)
 
+here = os.path.abspath(os.path.dirname(__file__))
+README = codecs.open(os.path.join(here, 'README.md'), encoding='utf8').read()
 setup(
     name = "linkbot_firmware_updater",
     packages = ["linkbot_firmware_updater", ],
@@ -21,6 +25,7 @@ setup(
         "pystk500v2 >= 2.3.0",
         ],
     description = "Firmware Updating Tool for Barobo Linkbots.",
+    long_description = README,
     zip_safe = False,
     include_package_data = True,
     author = "David Ko",
