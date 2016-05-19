@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-__version__ = "0.0.11"
+__version__ = "0.1.0"
 
 import sys
 from PyQt4 import QtCore, QtGui
@@ -8,7 +8,7 @@ try:
     from linkbot_firmware_updater.dialog import Ui_Dialog
 except:
     from dialog import Ui_Dialog
-import linkbot
+import linkbot3
 import time
 import glob
 import threading
@@ -26,6 +26,7 @@ from functools import reduce
 def _retry(f, n, interval, args=(), kwargs={}):
     retries = 0
     success = False
+    times = 10
     while True:
         try:
             return f(*args, **kwargs)
@@ -233,6 +234,11 @@ class StartQT4(QtGui.QDialog):
         for h in self.hexfiles:
             self.ui.comboBox_filename.addItem(h)
 
+        try:
+            self._daemon = linkbot3.Daemon()
+        except:
+            self._daemon = None
+
     def accept(self):
         self.waiting_overlay.show()
         #QtCore.QCoreApplication.instance().quit()
@@ -244,8 +250,11 @@ class StartQT4(QtGui.QDialog):
 
     def distractBaromeshThread(self):
         while self.isRunning:
-            linkbot._linkbot.cycleDongle(2)
-            time.sleep(1)
+            if self._daemon:
+                self._daemon.cycle(2)
+                time.sleep(1)
+            else:
+                return
 
     def listenerThread(self):
         prevDevices = glob.glob('/dev/ttyACM*')
