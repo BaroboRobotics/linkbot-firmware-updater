@@ -155,7 +155,7 @@ class LinkbotProgrammer(pystk500v2.Stk500):
 from pkg_resources import resource_filename, resource_listdir
 fallback_hex_file = ''
 fallback_eeprom_file = ''
-firmware_files = resource_listdir(__name__, 'hexfiles')
+firmware_files = resource_listdir('linkbot_firmware_updater', 'hexfiles')
 firmware_files = list(filter(lambda x: x.endswith('.hex') and x.startswith('v'), firmware_files))
 firmware_files.sort()
 firmware_basename = os.path.splitext(
@@ -253,6 +253,13 @@ class MainClass():
             print(e)
 
 
+instructions =  \
+    '''
+    Plug in and turn on Linkbot and Z-Link dongles to begin the programming
+    process. Programming is completed when the device emits a blue LED color.
+
+    Press 'Enter' to quit the programmer.
+    '''
 def main():
     myapp = MainClass()
     distractThread = threading.Thread(target=myapp.distractBaromeshThread)
@@ -261,6 +268,11 @@ def main():
     listenerThread = threading.Thread(target=myapp.listenerThread)
     listenerThread.start()
 
+    print(instructions)
+    input()
+    myapp.isRunning = False
+    distractThread.join()
+    listenerThread.join()
 
 if __name__ == "__main__":
     main()
