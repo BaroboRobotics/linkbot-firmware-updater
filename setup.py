@@ -20,8 +20,9 @@ setup(
     entry_points = {
         "console_scripts": ['linkbot-firmware-updater=linkbot_firmware_updater.linkbot_firmware_updater:main']
     },
+    scripts = ['bin/linkbot-firmware-updater-cli.py'],
     install_requires = [
-        "PyLinkbot3 >= 3.0.2", 
+        "PyLinkbot3 >= 3.0.6", 
         "pystk500v2 >= 2.3.0",
         ],
     description = "Firmware Updating Tool for Barobo Linkbots.",

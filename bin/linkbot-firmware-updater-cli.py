@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
-__version__ = "0.1.2"
+__version__ = "0.0.7"
 
 import sys
-from PyQt4 import QtCore, QtGui
 try:
     from linkbot_firmware_updater.dialog import Ui_Dialog
 except:
     from dialog import Ui_Dialog
-import linkbot3
+import linkbot3 as linkbot
 import time
 import glob
 import threading
@@ -26,7 +25,6 @@ from functools import reduce
 def _retry(f, n, interval, args=(), kwargs={}):
     retries = 0
     success = False
-    times = 10
     while True:
         try:
             return f(*args, **kwargs)
@@ -109,6 +107,7 @@ class LinkbotProgrammer(pystk500v2.Stk500):
         self.eepromFile.fromIHexFile(filename)
 
     def loadProgram(self, blocksize=0x0100, eepromblocksize=0x0010):
+        time.sleep(1.5)
         self._isprogramming = True
         _retry(self.get_sync, 5, 1)
         self.set_device()
@@ -144,7 +143,6 @@ class LinkbotProgrammer(pystk500v2.Stk500):
                     self.prog_page('E', self.eepromFile[curAddr:curAddr+eepromblocksize])
                 curAddr += eepromblocksize
         self.leave_progmode()
-        self.progress = 1
         self._isprogramming = False
 
     def loadProgramAsync(self, *args, **kwargs):
@@ -157,7 +155,8 @@ class LinkbotProgrammer(pystk500v2.Stk500):
 from pkg_resources import resource_filename, resource_listdir
 fallback_hex_file = ''
 fallback_eeprom_file = ''
-firmware_files = resource_listdir(__name__, 'hexfiles')
+firmware_files = resource_listdir('linkbot_firmware_updater', 'hexfiles')
+firmware_files = list(filter(lambda x: x.endswith('.hex') and x.startswith('v'), firmware_files))
 firmware_files.sort()
 firmware_basename = os.path.splitext(
     resource_filename(__name__, os.path.join('hexfiles', firmware_files[0])))[0]
@@ -185,29 +184,15 @@ itself and the normal instructions will again be displayed in this window...
 </html>
 '''
 
-class StartQT4(QtGui.QDialog):
-    linkbotDetectedSignal = QtCore.pyqtSignal(str)
-
+class MainClass():
     def __init__(self, parent=None):
-        QtGui.QWidget.__init__(self, parent)
-        self.ui = Ui_Dialog()
-        self.ui.setupUi(self)
-        self.isRunning = True
-        self.setWindowTitle('Linkbot Firmware Programmer')
-        self.linkbotDetectedSignal.connect(self.startProgramming)
-
         # Try and find the latest firmware file
         self.hexfiles = glob.glob(
             os.environ['HOME'] + 
             '/.local/share/Barobo/LinkbotLabs/firmware/*.hex')
         self.hexfiles += glob.glob(
             '/usr/share/Barobo/LinkbotLabs/firmware/*.hex')
-        #self.hexfiles += [fallback_hex_file]
-        def _form_abs_path(filename):
-            return resource_filename(__name__, 
-                    os.path.join('hexfiles', filename) ) 
-        abs_firmware_files = map(_form_abs_path, firmware_files)
-        self.hexfiles += abs_firmware_files
+        self.hexfiles += [fallback_hex_file]
 
         def sortkey(x):
             basename = os.path.basename(x)
@@ -229,82 +214,65 @@ class StartQT4(QtGui.QDialog):
             except:
                 return (0,0,0,0)
 
-        self.hexfiles = reversed(sorted(self.hexfiles, key=sortkey))
-
-        for h in self.hexfiles:
-            self.ui.comboBox_filename.addItem(h)
-
+        self.hexfiles = list(reversed(sorted(self.hexfiles, key=sortkey)))
+        self.isRunning = True
         try:
-            self._daemon = linkbot3.Daemon()
+            self.daemon = linkbot.Daemon()
         except:
-            self._daemon = None
-
-    def accept(self):
-        self.waiting_overlay.show()
-        #QtCore.QCoreApplication.instance().quit()
-        self.startProgramming('/dev/null')
-
-    def reject(self):
-        self.isRunning = False
-        QtCore.QCoreApplication.instance().quit()
+            self.daemon = None
 
     def distractBaromeshThread(self):
-        while self.isRunning:
-            if self._daemon:
-                self._daemon.cycle(2)
+        if self.daemon:
+            while self.isRunning:
+                self.daemon.cycle(2)
                 time.sleep(1)
-            else:
-                return
 
     def listenerThread(self):
         prevDevices = glob.glob('/dev/ttyACM*')
         while self.isRunning:
             devices = glob.glob('/dev/ttyACM*')
             if len(devices) > len(prevDevices):
-                time.sleep(1.5)
-                #self.startProgramming((set(devices)-set(prevDevices)).pop())
-                self.linkbotDetectedSignal.emit((set(devices)-set(prevDevices)).pop())
+                self.startProgramming((set(devices)-set(prevDevices)).pop())
             prevDevices = devices
-            time.sleep(0.5)
+            time.sleep(0.2)
 
     def startProgramming(self, serialPortPath): 
         try:
-            hexfile = self.ui.comboBox_filename.currentText()
-            self.ui.label.setText(programming_text)
-            self.ui.buttonBox.setEnabled(False)
-            self.programmer = LinkbotProgrammer(serialPortPath)
-            self.programmer.loadFlashHexFile(hexfile)
+            hexfile = self.hexfiles[0]
+            programmer = LinkbotProgrammer(serialPortPath)
+            programmer.loadFlashHexFile(hexfile)
             try:
                 basename,_ = os.path.splitext(hexfile)
                 eepromFile = basename + '.eeprom'
-                self.programmer.loadEepromHexFile(eepromFile)
+                programmer.loadEepromHexFile(eepromFile)
             except OSError:
                 pass # Don't worry if we can't find this file
-            self.programmer.loadProgramAsync()
-            self.updateProgressTimer = QtCore.QTimer(self)
-            self.updateProgressTimer.timeout.connect(self.updateProgress)
-            self.updateProgressTimer.start(500)
+            print('Programming file: {}'.format(hexfile))
+            programmer.loadProgramAsync()
         except Exception as e:
             print(e)
 
-    def updateProgress(self):
-        if not self.programmer.isProgramming():
-            self.ui.label.setText(instructions_text)
-            self.ui.buttonBox.setEnabled(True)
-            self.updateProgressTimer.stop()
-        self.ui.progressBar.setValue(self.programmer.getProgress()*100)
 
+instructions =  \
+    '''
+    Plug in and turn on Linkbot and Z-Link dongles to begin the programming
+    process. Programming is completed when the device emits a blue LED color.
+
+    Press 'Enter' to quit the programmer.
+    '''
 def main():
-    app = QtGui.QApplication(sys.argv)
-    myapp = StartQT4()
-    myapp.show()
+    myapp = MainClass()
     distractThread = threading.Thread(target=myapp.distractBaromeshThread)
     distractThread.start()
 
     listenerThread = threading.Thread(target=myapp.listenerThread)
     listenerThread.start()
 
-    sys.exit(app.exec_())
+    print(instructions)
+    input()
+    myapp.isRunning = False
+    distractThread.join()
+    listenerThread.join()
 
 if __name__ == "__main__":
     main()

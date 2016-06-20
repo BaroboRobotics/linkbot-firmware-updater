@@ -3,12 +3,11 @@
 __version__ = "0.0.7"
 
 import sys
-from PyQt4 import QtCore, QtGui
 try:
     from linkbot_firmware_updater.dialog import Ui_Dialog
 except:
     from dialog import Ui_Dialog
-import linkbot
+import linkbot3 as linkbot
 import time
 import glob
 import threading
@@ -197,16 +196,36 @@ class MainClass():
 
         def sortkey(x):
             basename = os.path.basename(x)
-            print(basename)
             m = re.search(r'v(\d+).(\d+).(\d+).hex', basename)
-            return tuple(map(int, m.group(1,2,3)))
+            if m is None:
+                print(basename)
+                m = re.search(r'v(\d+).(\d+).(\d+).(\d+).hex', basename)
+
+            try:
+                tweak = int(m.group(4))
+            except:
+                tweak = 0
+
+            try:
+                major = int(m.group(1))
+                minor = int(m.group(2))
+                patch = int(m.group(3))
+                return (major, minor, patch, tweak)
+            except:
+                return (0,0,0,0)
+
         self.hexfiles = list(reversed(sorted(self.hexfiles, key=sortkey)))
         self.isRunning = True
+        try:
+            self.daemon = linkbot.Daemon()
+        except:
+            self.daemon = None
 
     def distractBaromeshThread(self):
-        while self.isRunning:
-            linkbot._linkbot.cycleDongle(2)
-            time.sleep(1)
+        if self.daemon:
+            while self.isRunning:
+                self.daemon.cycle(2)
+                time.sleep(1)
 
     def listenerThread(self):
         prevDevices = glob.glob('/dev/ttyACM*')
