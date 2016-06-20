@@ -159,7 +159,7 @@ firmware_files = resource_listdir('linkbot_firmware_updater', 'hexfiles')
 firmware_files = list(filter(lambda x: x.endswith('.hex') and x.startswith('v'), firmware_files))
 firmware_files.sort()
 firmware_basename = os.path.splitext(
-    resource_filename(__name__, os.path.join('hexfiles', firmware_files[0])))[0]
+    resource_filename('linkbot_firmware_updater', os.path.join('hexfiles', firmware_files[0])))[0]
 fallback_hex_file = firmware_basename + '.hex'
 
 instructions_text = '''<html><head/><body><p>Instructions:</p><p>1. Unplug all
@@ -193,6 +193,8 @@ class MainClass():
         self.hexfiles += glob.glob(
             '/usr/share/Barobo/LinkbotLabs/firmware/*.hex')
         self.hexfiles += [fallback_hex_file]
+        for f in firmware_files:
+            self.hexfiles.append( resource_filename('linkbot_firmware_updater', os.path.join('hexfiles', f) ))
 
         def sortkey(x):
             basename = os.path.basename(x)
