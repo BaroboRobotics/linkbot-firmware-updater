@@ -22,7 +22,7 @@ setup(
     },
     scripts = ['bin/linkbot-firmware-updater-cli.py'],
     install_requires = [
-        "PyLinkbot3 >= 3.0.6", 
+        "PyLinkbot3 >= 3.0.6, <3.2.0", 
         "pystk500v2 >= 2.3.0",
         ],
     description = "Firmware Updating Tool for Barobo Linkbots.",
